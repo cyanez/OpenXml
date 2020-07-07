@@ -76,25 +76,9 @@ namespace OpenXMLManager {
         cell.DataType = cellDataType;
                     
         worksheetPart.Worksheet.Save();
-
-
-
-
-
-
-
-
-
-
-
-        // Cell cell = GetCell(worksheetPart, addressName);
-
-        //  MessageBox.Show(GetCellValue(workbookPart,cell));
-
+        
       }
-
-
-
+      
     }
 
     private static WorksheetPart GetSheet(WorkbookPart workbookPart, string sheetName) {      
@@ -153,6 +137,77 @@ namespace OpenXMLManager {
 
     }
 
+    public static void ReplaceCellValueInWorkBook(string fileName, string sheetName, string valueToSearch, string newValue) {
+      using (SpreadsheetDocument document = SpreadsheetDocument.Open(fileName, true)) {
+
+        WorkbookPart workbookPart = document.WorkbookPart;
+        WorksheetPart worksheetPart = GetSheet(workbookPart, sheetName);
+        
+        if (worksheetPart == null) {
+          throw new Exception("I cant find sheet: " + sheetName);
+        }
+
+        ReplaceCellValue(workbookPart, worksheetPart, valueToSearch, newValue);
+        
+      }
+
+    }
+
+    private static void ReplaceCellValue(WorkbookPart workbookPart, WorksheetPart worksheetPart, string valueToSearch, string newValue) {
+      SheetData sheetData = worksheetPart.Worksheet.GetFirstChild<SheetData>();
+
+      foreach (Row row in sheetData.Elements<Row>()) {
+        foreach (Cell cell in row.Elements<Cell>()) {
+
+          if (GetCellValue(workbookPart, cell) == valueToSearch) {
+            System.Diagnostics.Debug.WriteLine("Si lo cambie");
+            System.Diagnostics.Debug.WriteLine(cell.CellReference.Value);
+
+            cell.CellValue = new CellValue(newValue);
+            cell.DataType = new EnumValue<CellValues>(CellValues.String);
+
+            worksheetPart.Worksheet.Save();
+          }
+
+        }
+
+      }
+
+    }
+
+
+    private static string GetCellValue(WorkbookPart workbookPart, Cell cell) {
+      string value = "";
+      if (cell.InnerText.Length > 0) {
+        value = cell.InnerText;
+
+        if (cell.DataType != null) {
+
+          switch (cell.DataType.Value) {
+            case CellValues.SharedString:
+
+              var stringTable = workbookPart.GetPartsOfType<SharedStringTablePart>().FirstOrDefault();
+
+              if (stringTable != null) {
+                value = stringTable.SharedStringTable.ElementAt(int.Parse(value)).InnerText;
+              }
+              break;
+
+            case CellValues.Boolean:
+              switch (value) {
+                case "0":
+                  value = "FALSE";
+                  break;
+                default:
+                  value = "TRUE";
+                  break;
+              }
+              break;
+          }
+        }
+      }
+      return value;
+    }
 
 
   }
